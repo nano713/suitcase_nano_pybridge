@@ -20,7 +20,7 @@ __version__ = get_versions()["version"]
 del get_versions
 
 
-def export(gen, directory, file_prefix="{uid}-", **kwargs):
+def export(gen, directory, file_prefix="{uid}-", new_file_each=True, **kwargs):
     """
     Export a stream of documents to nomad_camels_hdf5.
 
@@ -83,7 +83,9 @@ def export(gen, directory, file_prefix="{uid}-", **kwargs):
 
     >>> export(gen, '/path/to/my_usb_stick')
     """
-    with Serializer(directory, file_prefix, **kwargs) as serializer:
+    with Serializer(
+        directory, file_prefix, new_file_each=new_file_each, **kwargs
+    ) as serializer:
         for item in gen:
             serializer(*item)
 
@@ -270,8 +272,15 @@ class FileManager:
         abs_file_path = (
             (self.directory / Path(relative_file_path)).expanduser().resolve()
         )
-        if abs_file_path in self._reserved_names and self._new_file_each:
-            abs_file_path = abs_file_path.split(".")[0] + f"_{entry_name}.nxs"
+        if (
+            (abs_file_path in self._reserved_names)
+            or os.path.isfile(abs_file_path.as_posix())
+            and self._new_file_each
+        ):
+            abs_file_path = abs_file_path.as_posix()
+            abs_file_path = (
+                abs_file_path.split(".")[0] + f"_{entry_name.replace(':','-')}.nxs"
+            )
         self._reserved_names.add(abs_file_path)
         self._artifacts[entry_name].append(abs_file_path)
         return abs_file_path
@@ -333,9 +342,15 @@ class Serializer(event_model.DocumentRouter):
         whatever resources are produced by the Manager)
     """
 
-    def __init__(self, directory, file_prefix="{uid}-", plot_data=None, **kwargs):
+    def __init__(
+        self,
+        directory,
+        file_prefix="{uid}-",
+        plot_data=None,
+        new_file_each=True,
+        **kwargs,
+    ):
 
-        self._file_prefix = file_prefix
         self._kwargs = kwargs
         self._directory = directory
         self._file_prefix = file_prefix
@@ -352,7 +367,9 @@ class Serializer(event_model.DocumentRouter):
             # The user has given us a filepath; they want files.
             # Set up a MultiFileManager for them.
             directory = Path(directory)
-            self._manager = FileManager(directory=directory)
+            self._manager = FileManager(
+                directory=directory, new_file_each=new_file_each
+            )
         else:
             # The user has given us their own Manager instance. Use that.
             self._manager = directory
@@ -431,8 +448,13 @@ class Serializer(event_model.DocumentRouter):
         # As in, '{uid}' -> 'c1790369-e4b2-46c7-a294-7abfa239691a'
         # or 'my-data-from-{plan-name}' -> 'my-data-from-scan'
         super().start(doc)
+        if isinstance(doc, databroker.core.Start):
+            doc = dict(doc)
         self._templated_file_prefix = self._file_prefix.format(**doc)
-        relative_path = Path(f"{self._templated_file_prefix}.nxs")
+        if self._templated_file_prefix.endswith(".nxs"):
+            relative_path = Path(self._templated_file_prefix)
+        else:
+            relative_path = Path(f"{self._templated_file_prefix}.nxs")
         entry_name = ""
         if "session_name" in doc:
             entry_name = doc["session_name"] + "_"
