@@ -1,6 +1,6 @@
 # suitcase.nomad_camels_hdf5
 
-This is a suitcase subpackage for writing a particular file format.
+This is a suitcase subpackage for the hdf5 Output of NOMAD CAMELS.
 
 ## Installation
 
