@@ -20,7 +20,9 @@ __version__ = get_versions()["version"]
 del get_versions
 
 
-def export(gen, directory, file_prefix="{uid}-", new_file_each=True, **kwargs):
+def export(
+    gen, directory, file_prefix="{uid}-", new_file_each=True, plot_data=None, **kwargs
+):
     """
     Export a stream of documents to nomad_camels_hdf5.
 
@@ -84,7 +86,11 @@ def export(gen, directory, file_prefix="{uid}-", new_file_each=True, **kwargs):
     >>> export(gen, '/path/to/my_usb_stick')
     """
     with Serializer(
-        directory, file_prefix, new_file_each=new_file_each, **kwargs
+        directory,
+        file_prefix,
+        new_file_each=new_file_each,
+        plot_data=plot_data,
+        **kwargs,
     ) as serializer:
         for item in gen:
             serializer(*item)
