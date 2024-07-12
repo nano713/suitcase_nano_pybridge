@@ -283,9 +283,10 @@ class FileManager:
             or os.path.isfile(abs_file_path.as_posix())
             and self._new_file_each
         ):
+            entry_name_non_iso = clean_filename(entry_name)
             abs_file_path = abs_file_path.as_posix()
             abs_file_path = (
-                abs_file_path.split(".")[0] + f"_{entry_name.replace(':','-')}.nxs"
+                os.path.splitext(abs_file_path)[0] + f"_{entry_name_non_iso}.nxs"
             )
         self._reserved_names.add(abs_file_path)
         self._artifacts[entry_name].append(abs_file_path)
