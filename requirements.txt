@@ -2,3 +2,4 @@
 event-model >=1.8.0
 suitcase-utils
 h5py>=3.7.0
+databroker>=1.2.5
