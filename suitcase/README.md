@@ -8,6 +8,9 @@ package and all other suitcase namespace packages.
 
 # Changelog
 
+## 0.1.3
+Fixed issue with empty data, this is now caught.
+
 ## 0.1.2
 Fixed issue with dots in paths
 

@@ -576,6 +576,11 @@ class Serializer(event_model.DocumentRouter):
                 ep_data_array = ep_data_array.astype(bytes)
             if ep_data_key not in stream_group.keys():
                 metadata = self._stream_metadata[doc["descriptor"]][ep_data_key]
+                if any(dim <= 0 for dim in ep_data_array.shape):
+                    print(
+                        f"Skipping {ep_data_key} because of shape {ep_data_array.shape}"
+                    )
+                    continue
                 stream_group.create_dataset(
                     data=ep_data_array,
                     name=ep_data_key,
