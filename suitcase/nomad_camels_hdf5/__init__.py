@@ -15,6 +15,7 @@ import collections
 from ._version import get_versions
 from datetime import datetime as dt
 import databroker
+import databroker.core
 
 __version__ = get_versions()["version"]
 del get_versions
