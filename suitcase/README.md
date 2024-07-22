@@ -9,7 +9,9 @@ package and all other suitcase namespace packages.
 # Changelog
 
 ## 0.1.3
-Fixed issue with empty data, this is now caught.
+Fixes:
+- Fixed issue with empty data, this is now caught.
+- can now save named tuples as they come from ophyd devices or camel's variable signal
 
 ## 0.1.2
 Fixed issue with dots in paths

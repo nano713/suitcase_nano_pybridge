@@ -572,28 +572,49 @@ class Serializer(event_model.DocumentRouter):
             )
             stream_group["time_since_start"][-1] = since
         for ep_data_key, ep_data_list in doc["data"].items():
+            metadata = self._stream_metadata[doc["descriptor"]][ep_data_key]
+            # check if the data is a namedtuple
+            if isinstance(ep_data_list[0], tuple):
+                # check if group already exists
+                if ep_data_key not in stream_group.keys():
+                    sub_group = stream_group.create_group(ep_data_key)
+                else:
+                    sub_group = stream_group[ep_data_key]
+                # make one dataset for each field in the namedtuple
+                for field in ep_data_list[0]._fields:
+                    # get the data for the field
+                    field_data = np.asarray([getattr(ep_data_list[0], field)])
+                    self._add_data_to_stream_group(
+                        metadata, sub_group, field_data, field
+                    )
+                continue
             ep_data_array = np.asarray(ep_data_list)
+
             if str(ep_data_array.dtype).startswith("<U"):
                 ep_data_array = ep_data_array.astype(bytes)
-            if ep_data_key not in stream_group.keys():
-                metadata = self._stream_metadata[doc["descriptor"]][ep_data_key]
-                if any(dim <= 0 for dim in ep_data_array.shape):
-                    print(
-                        f"Skipping {ep_data_key} because of shape {ep_data_array.shape}"
-                    )
-                    continue
-                stream_group.create_dataset(
-                    data=ep_data_array,
-                    name=ep_data_key,
-                    chunks=(1, *ep_data_array.shape[1:]),
-                    maxshape=(None, *ep_data_array.shape[1:]),
-                )
-                for key, val in metadata.items():
-                    stream_group[ep_data_key].attrs[key] = val
-            else:
-                ds = stream_group[ep_data_key]
-                ds.resize((ds.shape[0] + ep_data_array.shape[0]), axis=0)
-                ds[-ep_data_array.shape[0] :] = ep_data_array
+            self._add_data_to_stream_group(
+                metadata, stream_group, ep_data_array, ep_data_key
+            )
+
+    def _add_data_to_stream_group(
+        self, metadata, stream_group, ep_data_array, ep_data_key
+    ):
+        if ep_data_key not in stream_group.keys():
+            if any(dim <= 0 for dim in ep_data_array.shape):
+                print(f"Skipping {ep_data_key} because of shape {ep_data_array.shape}")
+                return
+            stream_group.create_dataset(
+                data=ep_data_array,
+                name=ep_data_key,
+                chunks=(1, *ep_data_array.shape[1:]),
+                maxshape=(None, *ep_data_array.shape[1:]),
+            )
+            for key, val in metadata.items():
+                stream_group[ep_data_key].attrs[key] = val
+        else:
+            ds = stream_group[ep_data_key]
+            ds.resize((ds.shape[0] + ep_data_array.shape[0]), axis=0)
+            ds[-ep_data_array.shape[0] :] = ep_data_array
 
     def stop(self, doc):
         super().stop(doc)
