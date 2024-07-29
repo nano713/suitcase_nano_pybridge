@@ -603,6 +603,8 @@ class Serializer(event_model.DocumentRouter):
             if any(dim <= 0 for dim in ep_data_array.shape):
                 print(f"Skipping {ep_data_key} because of shape {ep_data_array.shape}")
                 return
+            if str(ep_data_array.dtype).startswith("<U"):
+                ep_data_array = ep_data_array.astype(bytes)
             stream_group.create_dataset(
                 data=ep_data_array,
                 name=ep_data_key,

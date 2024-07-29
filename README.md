@@ -12,6 +12,9 @@ pip install suitcase-nomad-camels-hdf5
 
 # Changelog
 
+## 0.1.4
+Fixed saving of string data.
+
 ## 0.1.3
 Fixes:
 - Fixed issue with empty data, this is now caught.
