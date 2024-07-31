@@ -370,6 +370,11 @@ class Serializer(event_model.DocumentRouter):
         self._stream_names = {}
         self._plot_data = plot_data or []
         self._start_time = 0
+        self._channel_links = {}
+        self._channels_in_streams = {}
+        self._stream_counter = []
+        self._current_stream = None
+        self._channel_metadata = {}
 
         if isinstance(directory, (str, Path)):
             # The user has given us a filepath; they want files.
@@ -515,11 +520,27 @@ class Serializer(event_model.DocumentRouter):
         device_data = doc.pop("devices") if "devices" in doc else {}
         for dev, dat in device_data.items():
             dev_group = instr.create_group(dev)
-            dev_group.attrs["NX_class"] = "NXsensor"
+            dev_group.attrs["NX_class"] = "NXfabrication"
             if "idn" in dat:
                 dev_group["model"] = dat.pop("idn")
             else:
                 dev_group["model"] = dat["device_class_name"]
+            if "instrument_camels_channels" in dat:
+                sensor_group = dev_group.create_group("sensors")
+                for ch, ch_dat in dat["instrument_camels_channels"].items():
+                    ch_dat = dict(ch_dat)
+                    sensor = sensor_group.create_group(
+                        ch_dat.pop("name").split(".")[-1]
+                    )
+                    sensor.attrs["NX_class"] = "NXsensor"
+                    sensor["name"] = ch
+                    sensor["is_output"] = ch_dat.pop("output")
+
+                    metadata = ch_dat.pop("metadata")
+                    recourse_entry_dict(sensor, metadata)
+                    self._channel_metadata[ch] = metadata
+                    recourse_entry_dict(sensor, ch_dat)
+                    self._channel_links[ch] = sensor
             dev_group["name"] = dat.pop("device_class_name")
             dev_group["short_name"] = dev
             settings = dev_group.create_group("settings")
@@ -553,8 +574,12 @@ class Serializer(event_model.DocumentRouter):
         # then route them through here.
         super().event_page(doc)
         stream_group = self._stream_groups.get(doc["descriptor"], None)
-        if stream_group is None:
-            return
+        if self._current_stream != doc["descriptor"]:
+            self._current_stream = doc["descriptor"]
+            self._stream_counter.append([doc["descriptor"], 1])
+        else:
+            self._stream_counter[-1][1] += 1
+        self._stream_counter
         time = np.asarray([timestamp_to_ISO8601(doc["time"][0])])
         since = np.asarray([doc["time"][0] - self._start_time])
         if "time" not in stream_group.keys():
@@ -573,20 +598,33 @@ class Serializer(event_model.DocumentRouter):
             stream_group["time_since_start"][-1] = since
         for ep_data_key, ep_data_list in doc["data"].items():
             metadata = self._stream_metadata[doc["descriptor"]][ep_data_key]
+            if ep_data_key in self._channels_in_streams:
+                self._channels_in_streams[ep_data_key].append(doc["descriptor"])
+            else:
+                self._channels_in_streams[ep_data_key] = [doc["descriptor"]]
             # check if the data is a namedtuple
-            if isinstance(ep_data_list[0], tuple):
+            if isinstance(ep_data_list[0], tuple) or (
+                ep_data_key.endswith("_variable_signal") and "variables" in metadata
+            ):
                 # check if group already exists
                 if ep_data_key not in stream_group.keys():
                     sub_group = stream_group.create_group(ep_data_key)
                 else:
                     sub_group = stream_group[ep_data_key]
                 # make one dataset for each field in the namedtuple
-                for field in ep_data_list[0]._fields:
-                    # get the data for the field
-                    field_data = np.asarray([getattr(ep_data_list[0], field)])
-                    self._add_data_to_stream_group(
-                        metadata, sub_group, field_data, field
-                    )
+                if isinstance(ep_data_list[0], tuple):
+                    for field in ep_data_list[0]._fields:
+                        # get the data for the field
+                        field_data = np.asarray([getattr(ep_data_list[0], field)])
+                        self._add_data_to_stream_group(
+                            metadata, sub_group, field_data, field
+                        )
+                    continue
+                # make one dataset for each variable in the variable signal
+                for i, var in enumerate(metadata["variables"]):
+                    # get the data for the variable
+                    var_data = np.asarray([ep_data_list[0][i]])
+                    self._add_data_to_stream_group(metadata, sub_group, var_data, var)
                 continue
             ep_data_array = np.asarray(ep_data_list)
 
@@ -613,16 +651,62 @@ class Serializer(event_model.DocumentRouter):
             )
             for key, val in metadata.items():
                 stream_group[ep_data_key].attrs[key] = val
+            if ep_data_key in self._channel_metadata:
+                for key, val in self._channel_metadata[ep_data_key].items():
+                    stream_group[ep_data_key].attrs[key] = val
         else:
             ds = stream_group[ep_data_key]
             ds.resize((ds.shape[0] + ep_data_array.shape[0]), axis=0)
             ds[-ep_data_array.shape[0] :] = ep_data_array
+
+    def get_length_of_stream(self, stream_id):
+        return len(self._stream_groups[stream_id]["time"])
 
     def stop(self, doc):
         super().stop(doc)
         end_time = doc["time"]
         end_time = timestamp_to_ISO8601(end_time)
         self._entry["end_time"] = end_time
+
+        for ch, stream_docs in self._channels_in_streams.items():
+            if ch not in self._channel_links:
+                continue
+            total_length = 0
+            sources = {}
+            sources_time = {}
+            dataset = None
+            for stream in stream_docs:
+                total_length += self.get_length_of_stream(stream)
+                dataset = self._stream_groups[stream][ch]
+                sources[stream] = h5py.VirtualSource(self._stream_groups[stream][ch])
+                sources_time[stream] = h5py.VirtualSource(
+                    self._stream_groups[stream]["time"]
+                )
+                dtype_time = self._stream_groups[stream]["time"].dtype
+            if dataset is None:
+                continue
+            shape = (total_length, *dataset.shape[1:])
+            layout = h5py.VirtualLayout(shape=shape, dtype=dataset.dtype)
+            layout_time = h5py.VirtualLayout(shape=(total_length,), dtype=dtype_time)
+            n = 0
+            counts_per_stream = {}
+            for stream, count in self._stream_counter:
+                if stream not in stream_docs:
+                    continue
+                if stream not in counts_per_stream:
+                    counts_per_stream[stream] = 0
+                    n_stream = 0
+                else:
+                    n_stream = counts_per_stream[stream]
+                layout[n : n + count] = sources[stream][n_stream : n_stream + count]
+                layout_time[n : n + count] = sources_time[stream][
+                    n_stream : n_stream + count
+                ]
+                n += count
+                counts_per_stream[stream] += count
+            self._channel_links[ch].create_virtual_dataset("value_log", layout)
+            self._channel_links[ch].create_virtual_dataset("timestamps", layout_time)
+
         stream_axes = {}
         stream_signals = {}
         for plot in self._plot_data:

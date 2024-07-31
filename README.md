@@ -12,6 +12,15 @@ pip install suitcase-nomad-camels-hdf5
 
 # Changelog
 
+## 0.2.0
+Features:
+- Added virtual datasets of measured data in instruments, resembling the NeXus standard more closely.
+- More metadata for measured channels.
+
+Fixes:
+- Now correctly saving the variable signal also after run.
+
+
 ## 0.1.4
 Fixed saving of string data.
 
