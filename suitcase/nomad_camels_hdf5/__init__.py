@@ -245,6 +245,7 @@ class FileManager:
     Class taken from suitcase-nxsas!
 
     A class that manages multiple files.
+
     Parameters
     ----------
     directory : str or Path
@@ -600,9 +601,7 @@ class Serializer(event_model.DocumentRouter):
             stream_group["time_since_start"][-1] = since
         for ep_data_key, ep_data_list in doc["data"].items():
             metadata = self._stream_metadata[doc["descriptor"]][ep_data_key]
-            if ep_data_key in self._channels_in_streams:
-                self._channels_in_streams[ep_data_key].append(doc["descriptor"])
-            else:
+            if ep_data_key not in self._channels_in_streams:
                 self._channels_in_streams[ep_data_key] = [doc["descriptor"]]
             # check if the data is a namedtuple
             if isinstance(ep_data_list[0], tuple) or (

@@ -12,6 +12,9 @@ pip install suitcase-nomad-camels-hdf5
 
 # Changelog
 
+## 0.2.2
+Bug that would create datasets at the instruments with too high length fixed.
+
 ## 0.2.1
 Fixed bug with fits
 
