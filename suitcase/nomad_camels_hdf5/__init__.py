@@ -528,7 +528,8 @@ class Serializer(event_model.DocumentRouter):
                 dev_group["model"] = dat["device_class_name"]
             if "instrument_camels_channels" in dat:
                 sensor_group = dev_group.create_group("sensors")
-                for ch, ch_dat in dat["instrument_camels_channels"].items():
+                channel_dict = dat.pop("instrument_camels_channels")
+                for ch, ch_dat in channel_dict.items():
                     ch_dat = dict(ch_dat)
                     sensor = sensor_group.create_group(
                         ch_dat.pop("name").split(".")[-1]
@@ -544,8 +545,8 @@ class Serializer(event_model.DocumentRouter):
                     self._channel_links[ch] = sensor
             dev_group["name"] = dat.pop("device_class_name")
             dev_group["short_name"] = dev
-            settings = dev_group.create_group("settings")
-            recourse_entry_dict(settings, dat)
+            # settings = dev_group.create_group("settings")
+            recourse_entry_dict(dev_group, dat)
 
         recourse_entry_dict(entry, doc)
 

@@ -12,6 +12,9 @@ pip install suitcase-nomad-camels-hdf5
 
 # Changelog
 
+## 0.3.0
+Refactored the way metadata of instruments is saved.
+
 ## 0.2.2
 Bug that would create datasets at the instruments with too high length fixed.
 
