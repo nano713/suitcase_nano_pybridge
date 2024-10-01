@@ -510,18 +510,28 @@ class Serializer(event_model.DocumentRouter):
         user = entry.create_group("user")
         user.attrs["NX_class"] = "NXuser"
         user_data = doc.pop("user") if "user" in doc else {}
+        if "user_id" in user_data:
+            id_group = user.create_group("identifier")
+            id_group.attrs["NX_class"] = "NXidentifier"
+            id_group["identifier"] = user_data.pop("user_id")
+            id_group["service"] = user_data.pop("ELN-service")
         recourse_entry_dict(user, user_data)
         sample = entry.create_group("sample")
         sample.attrs["NX_class"] = "NXsample"
         sample_data = doc.pop("sample") if "sample" in doc else {}
+        if "identifier" in sample_data:
+            id_group = sample.create_group("identifier")
+            id_group.attrs["NX_class"] = "NXidentifier"
+            id_group["identifier"] = sample_data.pop("identifier")
+            id_group["service"] = sample_data.pop("ELN-service")
         recourse_entry_dict(sample, sample_data)
 
-        instr = entry.create_group("instrument")
+        instr = entry.create_group("instruments")
         instr.attrs["NX_class"] = "NXinstrument"
         device_data = doc.pop("devices") if "devices" in doc else {}
         for dev, dat in device_data.items():
             dev_group = instr.create_group(dev)
-            dev_group.attrs["NX_class"] = "NXfabrication"
+            dev_group.attrs["NX_class"] = "NXinstrument"
             if "idn" in dat:
                 dev_group["model"] = dat.pop("idn")
             else:
@@ -546,7 +556,14 @@ class Serializer(event_model.DocumentRouter):
             dev_group["name"] = dat.pop("device_class_name")
             dev_group["short_name"] = dev
             # settings = dev_group.create_group("settings")
-            recourse_entry_dict(dev_group, dat)
+            fab_group = dev_group.create_group("fabrication")
+            fab_group.attrs["NX_class"] = "NXfabrication"
+            if "ELN-instrument-id" in dat and dat["ELN-instrument-id"]:
+                id_group = fab_group.create_group("identifier")
+                id_group.attrs["NX_class"] = "NXidentifier"
+                id_group["identifier"] = dat.pop("ELN-instrument-id")
+                id_group["service"] = dat.pop("ELN-service")
+            recourse_entry_dict(fab_group, dat)
 
         recourse_entry_dict(entry, doc)
 

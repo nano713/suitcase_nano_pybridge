@@ -12,6 +12,9 @@ pip install suitcase-nomad-camels-hdf5
 
 # Changelog
 
+## 0.3.1
+Improved the NOMAD identifier for samples, user and instruments
+
 ## 0.3.0
 Refactored the way metadata of instruments is saved.
 
