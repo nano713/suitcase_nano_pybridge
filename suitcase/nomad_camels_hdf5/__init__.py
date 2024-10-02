@@ -518,6 +518,14 @@ class Serializer(event_model.DocumentRouter):
                 id_group["service"] = user_data.pop("ELN-service")
             else:
                 id_group["service"] = "unknown"
+        elif "identifier" in user_data:
+            id_group = user.create_group("identifier")
+            id_group.attrs["NX_class"] = "NXidentifier"
+            id_group["identifier"] = user_data.pop("identifier")
+            if "ELN-service" in user_data:
+                id_group["service"] = user_data.pop("ELN-service")
+            else:
+                id_group["service"] = "unknown"
         recourse_entry_dict(user, user_data)
         sample = entry.create_group("sample")
         sample.attrs["NX_class"] = "NXsample"
@@ -572,6 +580,15 @@ class Serializer(event_model.DocumentRouter):
                     id_group["service"] = dat.pop("ELN-service")
                 else:
                     id_group["service"] = "unknown"
+            elif "identifier" in dat and dat["identifier"]:
+                id_group = fab_group.create_group("identifier")
+                id_group.attrs["NX_class"] = "NXidentifier"
+                id_group["identifier"] = dat.pop("identifier")
+                if "ELN-service" in dat:
+                    id_group["service"] = dat.pop("ELN-service")
+                else:
+                    id_group["service"] = "unknown"
+
             recourse_entry_dict(fab_group, dat)
 
         recourse_entry_dict(entry, doc)
