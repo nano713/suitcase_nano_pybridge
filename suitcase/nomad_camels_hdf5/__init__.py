@@ -485,7 +485,7 @@ class Serializer(event_model.DocumentRouter):
             entry_name = doc["session_name"]
         start_time = doc["time"]
         start_time = timestamp_to_ISO8601(start_time)
-        self._start_time = doc["time"]
+        self._start_time = doc.pop("time")
 
         self._h5_output_file = self._manager.open(
             entry_name=entry_name, relative_file_path=relative_path, mode="a"
@@ -500,30 +500,58 @@ class Serializer(event_model.DocumentRouter):
         entry = self._h5_output_file.create_group(entry_name)
         self._entry = entry
         entry.attrs["NX_class"] = "NXentry"
-        entry["definition"] = "NXsensor_scan"
+        # entry["definition"] = "NXsensor_scan"
+        if "versions" in doc and set(doc["versions"].keys()) == {
+            "bluesky",
+            "ophyd",
+        }:
+            doc.pop("versions")
         entry["start_time"] = start_time
+        experiment = entry.create_group("experiment_description")
         if "description" in doc:
             desc = doc.pop("description")
-            entry["experiment_description"] = desc
+            experiment["experiment_description"] = desc
         if "identifier" in doc:
             ident = doc.pop("identifier")
-            entry["experiment_identifier"] = ident
-        proc = entry.create_group("process")
-        proc.attrs["NX_class"] = "NXprocess"
-        proc["program"] = "NOMAD CAMELS"
-        proc["program"].attrs["version"] = "0.1"
-        proc["program"].attrs["program_url"] = "https://github.com/FAU-LAP/NOMAD-CAMELS"
-        version_dict = doc.pop("versions") if "versions" in doc else {}
-        vers_group = proc.create_group("versions")
-        py_environment = proc.create_group("python_environment")
+            experiment["experiment_identifier"] = ident
+        if "protocol_json" in doc:
+            experiment["protocol_json"] = doc.pop("protocol_json")
+        if "plan_name" in doc:
+            experiment["plan_name"] = doc.pop("plan_name")
+        if "plan_type" in doc:
+            experiment["plan_type"] = doc.pop("plan_type")
+        if "protocol_overview" in doc:
+            experiment["protocol_overview"] = doc.pop("protocol_overview")
+        if "python_script" in doc:
+            experiment["python_script"] = doc.pop("python_script")
+        if "scan_id" in doc:
+            experiment["scan_id"] = doc.pop("scan_id")
+        if "session_name" in doc:
+            experiment["session_name"] = doc.pop("session_name")
+        uid = None
+        if "uid" in doc:
+            uid = doc.pop("uid")
+            experiment["uid"] = uid
+        if "variables" in doc:
+            experiment.create_group("protocol_variables")
+            recourse_entry_dict(experiment["protocol_variables"], doc.pop("variables"))
+        program = entry.create_group("program")
+        program["program_name"] = "NOMAD CAMELS"
+        # proc["program"].attrs["version"] = "0.1"
+        # proc["program"].attrs["program_url"] = "https://github.com/FAU-LAP/NOMAD-CAMELS"
+        # version_dict = doc.pop("versions") if "versions" in doc else {}
+        # vers_group = proc.create_group("versions")
+        py_environment = program.create_group("python_environment")
         py_environment.attrs["python_version"] = sys.version
         for x in importlib.metadata.distributions():
             name = x.metadata["Name"]
             if name not in py_environment.keys():
+                if name == "nomad_camels":
+                    program["version"] = x.version
                 py_environment[x.metadata["Name"]] = x.version
             # except Exception as e:
             #     print(e, x.metadata['Name'])
-        recourse_entry_dict(vers_group, version_dict)
+        # recourse_entry_dict(vers_group, version_dict)
         user = entry.create_group("user")
         user.attrs["NX_class"] = "NXuser"
         user_data = doc.pop("user") if "user" in doc else {}
@@ -619,6 +647,8 @@ class Serializer(event_model.DocumentRouter):
 
         self._data_entry = entry.create_group("data")
         self._data_entry.attrs["NX_class"] = "NXdata"
+        if uid is not None:
+            doc["uid"] = uid
 
     def descriptor(self, doc):
         super().descriptor(doc)
