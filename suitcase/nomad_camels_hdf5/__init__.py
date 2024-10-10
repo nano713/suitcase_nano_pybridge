@@ -569,15 +569,22 @@ class Serializer(event_model.DocumentRouter):
                 dev_group["model"] = dat["device_class_name"]
             if "instrument_camels_channels" in dat:
                 sensor_group = dev_group.create_group("sensors")
+                output_group = dev_group.create_group("outputs")
                 channel_dict = dat.pop("instrument_camels_channels")
                 for ch, ch_dat in channel_dict.items():
+                    is_output = ch_dat.pop("output")
                     ch_dat = dict(ch_dat)
-                    sensor = sensor_group.create_group(
-                        ch_dat.pop("name").split(".")[-1]
-                    )
-                    sensor.attrs["NX_class"] = "NXsensor"
+                    if is_output:
+                        sensor = output_group.create_group(
+                            ch_dat.pop("name").split(".")[-1]
+                        )
+                        sensor.attrs["NX_class"] = "NXactuator"
+                    else:
+                        sensor = sensor_group.create_group(
+                            ch_dat.pop("name").split(".")[-1]
+                        )
+                        sensor.attrs["NX_class"] = "NXsensor"
                     sensor["name"] = ch
-                    sensor["is_output"] = ch_dat.pop("output")
 
                     metadata = ch_dat.pop("metadata")
                     recourse_entry_dict(sensor, metadata)
