@@ -12,6 +12,18 @@ pip install suitcase-nomad-camels-hdf5
 
 # Changelog
 
+## 0.3.1
+Improved the NOMAD identifier for samples, user and instruments
+
+## 0.3.0
+Refactored the way metadata of instruments is saved.
+
+## 0.2.2
+Bug that would create datasets at the instruments with too high length fixed.
+
+## 0.2.1
+Fixed bug with fits
+
 ## 0.2.0
 Features:
 - Added virtual datasets of measured data in instruments, resembling the NeXus standard more closely.

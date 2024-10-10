@@ -245,6 +245,7 @@ class FileManager:
     Class taken from suitcase-nxsas!
 
     A class that manages multiple files.
+
     Parameters
     ----------
     directory : str or Path
@@ -509,25 +510,50 @@ class Serializer(event_model.DocumentRouter):
         user = entry.create_group("user")
         user.attrs["NX_class"] = "NXuser"
         user_data = doc.pop("user") if "user" in doc else {}
+        if "user_id" in user_data:
+            id_group = user.create_group("identifier")
+            id_group.attrs["NX_class"] = "NXidentifier"
+            id_group["identifier"] = user_data.pop("user_id")
+            if "ELN-service" in user_data:
+                id_group["service"] = user_data.pop("ELN-service")
+            else:
+                id_group["service"] = "unknown"
+        elif "identifier" in user_data:
+            id_group = user.create_group("identifier")
+            id_group.attrs["NX_class"] = "NXidentifier"
+            id_group["identifier"] = user_data.pop("identifier")
+            if "ELN-service" in user_data:
+                id_group["service"] = user_data.pop("ELN-service")
+            else:
+                id_group["service"] = "unknown"
         recourse_entry_dict(user, user_data)
         sample = entry.create_group("sample")
         sample.attrs["NX_class"] = "NXsample"
         sample_data = doc.pop("sample") if "sample" in doc else {}
+        if "identifier" in sample_data:
+            id_group = sample.create_group("identifier")
+            id_group.attrs["NX_class"] = "NXidentifier"
+            id_group["identifier"] = sample_data.pop("identifier")
+            if "ELN-service" in sample_data:
+                id_group["service"] = sample_data.pop("ELN-service")
+            else:
+                id_group["service"] = "unknown"
         recourse_entry_dict(sample, sample_data)
 
-        instr = entry.create_group("instrument")
+        instr = entry.create_group("instruments")
         instr.attrs["NX_class"] = "NXinstrument"
         device_data = doc.pop("devices") if "devices" in doc else {}
         for dev, dat in device_data.items():
             dev_group = instr.create_group(dev)
-            dev_group.attrs["NX_class"] = "NXfabrication"
+            dev_group.attrs["NX_class"] = "NXinstrument"
             if "idn" in dat:
                 dev_group["model"] = dat.pop("idn")
             else:
                 dev_group["model"] = dat["device_class_name"]
             if "instrument_camels_channels" in dat:
                 sensor_group = dev_group.create_group("sensors")
-                for ch, ch_dat in dat["instrument_camels_channels"].items():
+                channel_dict = dat.pop("instrument_camels_channels")
+                for ch, ch_dat in channel_dict.items():
                     ch_dat = dict(ch_dat)
                     sensor = sensor_group.create_group(
                         ch_dat.pop("name").split(".")[-1]
@@ -543,8 +569,27 @@ class Serializer(event_model.DocumentRouter):
                     self._channel_links[ch] = sensor
             dev_group["name"] = dat.pop("device_class_name")
             dev_group["short_name"] = dev
-            settings = dev_group.create_group("settings")
-            recourse_entry_dict(settings, dat)
+            # settings = dev_group.create_group("settings")
+            fab_group = dev_group.create_group("fabrication")
+            fab_group.attrs["NX_class"] = "NXfabrication"
+            if "ELN-instrument-id" in dat and dat["ELN-instrument-id"]:
+                id_group = fab_group.create_group("identifier")
+                id_group.attrs["NX_class"] = "NXidentifier"
+                id_group["identifier"] = dat.pop("ELN-instrument-id")
+                if "ELN-service" in dat:
+                    id_group["service"] = dat.pop("ELN-service")
+                else:
+                    id_group["service"] = "unknown"
+            elif "identifier" in dat and dat["identifier"]:
+                id_group = fab_group.create_group("identifier")
+                id_group.attrs["NX_class"] = "NXidentifier"
+                id_group["identifier"] = dat.pop("identifier")
+                if "ELN-service" in dat:
+                    id_group["service"] = dat.pop("ELN-service")
+                else:
+                    id_group["service"] = "unknown"
+
+            recourse_entry_dict(fab_group, dat)
 
         recourse_entry_dict(entry, doc)
 
@@ -574,6 +619,8 @@ class Serializer(event_model.DocumentRouter):
         # then route them through here.
         super().event_page(doc)
         stream_group = self._stream_groups.get(doc["descriptor"], None)
+        if stream_group is None:
+            return
         if self._current_stream != doc["descriptor"]:
             self._current_stream = doc["descriptor"]
             self._stream_counter.append([doc["descriptor"], 1])
@@ -598,9 +645,7 @@ class Serializer(event_model.DocumentRouter):
             stream_group["time_since_start"][-1] = since
         for ep_data_key, ep_data_list in doc["data"].items():
             metadata = self._stream_metadata[doc["descriptor"]][ep_data_key]
-            if ep_data_key in self._channels_in_streams:
-                self._channels_in_streams[ep_data_key].append(doc["descriptor"])
-            else:
+            if ep_data_key not in self._channels_in_streams:
                 self._channels_in_streams[ep_data_key] = [doc["descriptor"]]
             # check if the data is a namedtuple
             if isinstance(ep_data_list[0], tuple) or (
