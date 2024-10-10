@@ -12,16 +12,21 @@ pip install suitcase-nomad-camels-hdf5
 
 # Changelog
 
-## 0.3.1
+## 0.4.0
+Changes:
+- The entry / file name is now only numbered, the timestamp was removed
+- 
+
+### 0.3.1
 Improved the NOMAD identifier for samples, user and instruments
 
 ## 0.3.0
 Refactored the way metadata of instruments is saved.
 
-## 0.2.2
+### 0.2.2
 Bug that would create datasets at the instruments with too high length fixed.
 
-## 0.2.1
+### 0.2.1
 Fixed bug with fits
 
 ## 0.2.0
@@ -33,18 +38,18 @@ Fixes:
 - Now correctly saving the variable signal also after run.
 
 
-## 0.1.4
+### 0.1.4
 Fixed saving of string data.
 
-## 0.1.3
+### 0.1.3
 Fixes:
 - Fixed issue with empty data, this is now caught.
 - can now save named tuples as they come from ophyd devices or camel's variable signal
 
-## 0.1.2
+### 0.1.2
 Fixed issue with dots in paths
 
-## 0.1.1
+### 0.1.1
 Added CAMELS plots to export function
 
 ## 0.1.0

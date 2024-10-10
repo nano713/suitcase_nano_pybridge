@@ -290,6 +290,17 @@ class FileManager:
             abs_file_path = (
                 os.path.splitext(abs_file_path)[0] + f"_{entry_name_non_iso}.nxs"
             )
+        i = 1
+        while (
+            (abs_file_path in self._reserved_names)
+            or os.path.isfile(abs_file_path)
+            and self._new_file_each
+        ):
+            if abs_file_path.endswith(f"_{i-1}.nxs"):
+                abs_file_path = abs_file_path.replace(f"_{i-1}.nxs", f"_{i}.nxs")
+            else:
+                abs_file_path = os.path.splitext(abs_file_path)[0] + f"_{i}.nxs"
+            i += 1
         self._reserved_names.add(abs_file_path)
         self._artifacts[entry_name].append(abs_file_path)
         return abs_file_path
@@ -469,17 +480,23 @@ class Serializer(event_model.DocumentRouter):
             relative_path = Path(self._templated_file_prefix)
         else:
             relative_path = Path(f"{self._templated_file_prefix}.nxs")
-        entry_name = ""
-        if "session_name" in doc:
-            entry_name = doc["session_name"] + "_"
+        entry_name = "entry"
+        if "session_name" in doc and doc["session_name"]:
+            entry_name = doc["session_name"]
         start_time = doc["time"]
         start_time = timestamp_to_ISO8601(start_time)
         self._start_time = doc["time"]
-        entry_name += start_time
 
         self._h5_output_file = self._manager.open(
             entry_name=entry_name, relative_file_path=relative_path, mode="a"
         )
+        i = 1
+        while entry_name in self._h5_output_file:
+            if entry_name.endswith(f"_{i-1}"):
+                entry_name = entry_name.replace(f"_{i-1}", f"_{i}")
+            else:
+                entry_name += f"_{i}"
+            i += 1
         entry = self._h5_output_file.create_group(entry_name)
         self._entry = entry
         entry.attrs["NX_class"] = "NXentry"
@@ -541,7 +558,7 @@ class Serializer(event_model.DocumentRouter):
         recourse_entry_dict(sample, sample_data)
 
         instr = entry.create_group("instruments")
-        instr.attrs["NX_class"] = "NXinstrument"
+        # instr.attrs["NX_class"] = "NXinstrument"
         device_data = doc.pop("devices") if "devices" in doc else {}
         for dev, dat in device_data.items():
             dev_group = instr.create_group(dev)
