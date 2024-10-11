@@ -17,6 +17,7 @@ Changes:
 - The entry / file name is now only numbered, the timestamp was removed
 - Split up sensors and outputs
 - moved a lot of metadata into groups to make it easier to understand
+- The sorting of what goes in the fabrication inside one instrument was changed
 
 ### 0.3.1
 Improved the NOMAD identifier for samples, user and instruments

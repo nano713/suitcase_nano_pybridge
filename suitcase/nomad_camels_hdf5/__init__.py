@@ -473,8 +473,8 @@ class Serializer(event_model.DocumentRouter):
         # As in, '{uid}' -> 'c1790369-e4b2-46c7-a294-7abfa239691a'
         # or 'my-data-from-{plan-name}' -> 'my-data-from-scan'
         super().start(doc)
-        if isinstance(doc, databroker.core.Start):
-            doc = dict(doc)
+        # if isinstance(doc, databroker.core.Start):
+        doc = dict(doc)  # convert to dict or make a copy
         self._templated_file_prefix = self._file_prefix.format(**doc)
         if self._templated_file_prefix.endswith(".nxs"):
             relative_path = Path(self._templated_file_prefix)
@@ -591,10 +591,6 @@ class Serializer(event_model.DocumentRouter):
         for dev, dat in device_data.items():
             dev_group = instr.create_group(dev)
             dev_group.attrs["NX_class"] = "NXinstrument"
-            if "idn" in dat:
-                dev_group["model"] = dat.pop("idn")
-            else:
-                dev_group["model"] = dat["device_class_name"]
             if "instrument_camels_channels" in dat:
                 sensor_group = dev_group.create_group("sensors")
                 output_group = dev_group.create_group("outputs")
@@ -619,11 +615,15 @@ class Serializer(event_model.DocumentRouter):
                     self._channel_metadata[ch] = metadata
                     recourse_entry_dict(sensor, ch_dat)
                     self._channel_links[ch] = sensor
+            fab_group = dev_group.create_group("fabrication")
+            fab_group.attrs["NX_class"] = "NXfabrication"
+            if "idn" in dat:
+                fab_group["model"] = dat.pop("idn")
+            else:
+                fab_group["model"] = dat["device_class_name"]
             dev_group["name"] = dat.pop("device_class_name")
             dev_group["short_name"] = dev
             # settings = dev_group.create_group("settings")
-            fab_group = dev_group.create_group("fabrication")
-            fab_group.attrs["NX_class"] = "NXfabrication"
             if "ELN-instrument-id" in dat and dat["ELN-instrument-id"]:
                 id_group = fab_group.create_group("identifier")
                 id_group.attrs["NX_class"] = "NXidentifier"
@@ -640,8 +640,22 @@ class Serializer(event_model.DocumentRouter):
                     id_group["service"] = dat.pop("ELN-service")
                 else:
                     id_group["service"] = "unknown"
+            if "ELN-metadata" in dat:
+                recourse_entry_dict(
+                    fab_group, {"ELN-metadata": dat.pop("ELN-metadata")}
+                )
 
-            recourse_entry_dict(fab_group, dat)
+            used_keys = []
+            for key, val in dat.items():
+                if key.startswith("python_file_"):
+                    if not "driver_files" in dev_group:
+                        dev_group.create_group("driver_files")
+                    dev_group["driver_files"][key] = val
+                    used_keys.append(key)
+            for key in used_keys:
+                dat.pop(key)
+
+            recourse_entry_dict(dev_group, dat)
 
         recourse_entry_dict(entry, doc)
 
