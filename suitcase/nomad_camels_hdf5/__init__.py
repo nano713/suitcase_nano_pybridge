@@ -387,6 +387,7 @@ class Serializer(event_model.DocumentRouter):
         self._stream_counter = []
         self._current_stream = None
         self._channel_metadata = {}
+        self._entry_name = ""
 
         if isinstance(directory, (str, Path)):
             # The user has given us a filepath; they want files.
@@ -492,16 +493,18 @@ class Serializer(event_model.DocumentRouter):
         )
         i = 1
         self._h5_output_file.attrs["NX_class"] = "NXroot"
+        entry_name = "CAMELS_" + entry_name
         while entry_name in self._h5_output_file:
             if entry_name.endswith(f"_{i-1}"):
                 entry_name = entry_name.replace(f"_{i-1}", f"_{i}")
             else:
                 entry_name += f"_{i}"
             i += 1
+        self._entry_name = entry_name
         entry = self._h5_output_file.create_group(entry_name)
         self._entry = entry
         entry.attrs["NX_class"] = "NXentry"
-        entry["definition"] = "NXsensor_scan"
+        # entry["definition"] = "NXsensor_scan"
         if "versions" in doc and set(doc["versions"].keys()) == {
             "bluesky",
             "ophyd",
@@ -511,9 +514,7 @@ class Serializer(event_model.DocumentRouter):
         experiment["start_time"] = start_time
         if "description" in doc:
             desc = doc.pop("description")
-            entry["experiment_description"] = desc
-        else:
-            entry["experiment_description"] = ""
+            experiment["experiment_description"] = desc
         if "identifier" in doc:
             ident = doc.pop("identifier")
             experiment["experiment_identifier"] = ident
@@ -582,6 +583,8 @@ class Serializer(event_model.DocumentRouter):
             id_group = sample.create_group("identifier")
             id_group.attrs["NX_class"] = "NXidentifier"
             id_group["identifier"] = sample_data.pop("identifier")
+            if "full_identifier" in sample_data:
+                id_group["full_identifier"] = sample_data.pop("full_identifier")
             if "ELN-service" in sample_data:
                 id_group["service"] = sample_data.pop("ELN-service")
             else:
@@ -592,7 +595,7 @@ class Serializer(event_model.DocumentRouter):
         # instr.attrs["NX_class"] = "NXinstrument"
         device_data = doc.pop("devices") if "devices" in doc else {}
         for dev, dat in device_data.items():
-            dev_group = entry.create_group(dev)
+            dev_group = instr.create_group(dev)
             dev_group.attrs["NX_class"] = "NXinstrument"
             if "instrument_camels_channels" in dat:
                 sensor_group = dev_group.create_group("sensors")
@@ -631,6 +634,8 @@ class Serializer(event_model.DocumentRouter):
                 id_group = fab_group.create_group("identifier")
                 id_group.attrs["NX_class"] = "NXidentifier"
                 id_group["identifier"] = dat.pop("ELN-instrument-id")
+                if "full_identifier" in dat:
+                    id_group["full_identifier"] = dat.pop("full_identifier")
                 if "ELN-service" in dat:
                     id_group["service"] = dat.pop("ELN-service")
                 else:
@@ -895,4 +900,55 @@ class Serializer(event_model.DocumentRouter):
                 if len(signals) > 1:
                     group.attrs["auxiliary_signals"] = signals[1:]
 
+        self.make_nexus_structure()
+
         self.close()
+
+    def make_nexus_structure(self):
+        if self._entry_name.startswith("CAMELS_"):
+            nexus_name = "NeXus_" + self._entry_name[7:]
+        else:
+            nexus_name = "NeXus_" + self._entry_name
+        nx_group = self._h5_output_file.create_group(nexus_name)
+        nx_group.attrs["NX_class"] = "NXentry"
+        nx_group["definition"] = "NXsensor_scan"
+        nx_group["definition"].attrs["version"] = ""
+        nx_group["experiment_description"] = h5py.SoftLink(
+            f"/{self._entry_name}/experiment_details/experiment_description"
+        )
+        nx_group["start_time"] = h5py.SoftLink(
+            f"/{self._entry_name}/experiment_details/start_time"
+        )
+        nx_group["end_time"] = h5py.SoftLink(
+            f"/{self._entry_name}/experiment_details/end_time"
+        )
+        process = nx_group.create_group("process")
+        process.attrs["NX_class"] = "NXprocess"
+        process["program"] = ""
+        process["program"].attrs["version"] = ""
+        process["program"].attrs["program_url"] = ""
+        nx_group["user"] = h5py.SoftLink(f"/{self._entry_name}/user")
+        nx_group["sample"] = h5py.SoftLink(f"/{self._entry_name}/sample")
+        for dev in self._entry["instruments"]:
+            nx_group[dev] = h5py.SoftLink(f"/{self._entry_name}/instruments/{dev}")
+            nx_group[dev].create_group("environment")
+            nx_group[dev]["environment"].attrs["NX_class"] = "NXenvironment"
+            nx_group[dev]["environment"]["independent_controllers"] = ""
+            nx_group[dev]["environment"]["measurement_sensors"] = ""
+            for sensor in nx_group[dev]["sensors"]:
+                nx_group[dev]["environment"][sensor] = h5py.SoftLink(
+                    f"/{self._entry_name}/instruments/{dev}/sensors/{sensor}"
+                )
+                nx_group[dev]["environment"][sensor]["calibration_time"] = ""
+                nx_group[dev]["environment"][sensor]["run_control"] = ""
+                nx_group[dev]["environment"][sensor]["run_control"].attrs[
+                    "description"
+                ] = ""
+                nx_group[dev]["environment"][sensor]["value"] = 0.0
+            nx_group[dev]["environment"].create_group("pid")
+            nx_group[dev]["environment"]["pid"].attrs["NX_class"] = "NXpid"
+        nx_group["data"] = h5py.SoftLink(f"/{self._entry_name}/data")
+        for dat in self._entry["data"]:
+            # check if group has attribute NX_class as NXdata
+            if self._entry["data"][dat].attrs.get("NX_class") == "NXdata":
+                nx_group[dat] = h5py.SoftLink(f"/{self._entry_name}/data/{dat}")
