@@ -782,7 +782,7 @@ class Serializer(event_model.DocumentRouter):
         super().stop(doc)
         end_time = doc["time"]
         end_time = timestamp_to_ISO8601(end_time)
-        self._entry["experiment_description"]["end_time"] = end_time
+        self._entry["experiment_details"]["end_time"] = end_time
 
         for ch, stream_docs in self._channels_in_streams.items():
             if ch not in self._channel_links:
