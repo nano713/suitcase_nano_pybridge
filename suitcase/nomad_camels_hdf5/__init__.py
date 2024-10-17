@@ -491,6 +491,7 @@ class Serializer(event_model.DocumentRouter):
             entry_name=entry_name, relative_file_path=relative_path, mode="a"
         )
         i = 1
+        self._h5_output_file.attrs["NX_class"] = "NXroot"
         while entry_name in self._h5_output_file:
             if entry_name.endswith(f"_{i-1}"):
                 entry_name = entry_name.replace(f"_{i-1}", f"_{i}")
@@ -500,17 +501,19 @@ class Serializer(event_model.DocumentRouter):
         entry = self._h5_output_file.create_group(entry_name)
         self._entry = entry
         entry.attrs["NX_class"] = "NXentry"
-        # entry["definition"] = "NXsensor_scan"
+        entry["definition"] = "NXsensor_scan"
         if "versions" in doc and set(doc["versions"].keys()) == {
             "bluesky",
             "ophyd",
         }:
             doc.pop("versions")
-        experiment = entry.create_group("experiment_description")
+        experiment = entry.create_group("experiment_details")
         experiment["start_time"] = start_time
         if "description" in doc:
             desc = doc.pop("description")
-            experiment["experiment_description"] = desc
+            entry["experiment_description"] = desc
+        else:
+            entry["experiment_description"] = ""
         if "identifier" in doc:
             ident = doc.pop("identifier")
             experiment["experiment_identifier"] = ident
@@ -589,7 +592,7 @@ class Serializer(event_model.DocumentRouter):
         # instr.attrs["NX_class"] = "NXinstrument"
         device_data = doc.pop("devices") if "devices" in doc else {}
         for dev, dat in device_data.items():
-            dev_group = instr.create_group(dev)
+            dev_group = entry.create_group(dev)
             dev_group.attrs["NX_class"] = "NXinstrument"
             if "instrument_camels_channels" in dat:
                 sensor_group = dev_group.create_group("sensors")
