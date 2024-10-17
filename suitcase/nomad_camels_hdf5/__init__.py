@@ -506,8 +506,8 @@ class Serializer(event_model.DocumentRouter):
             "ophyd",
         }:
             doc.pop("versions")
-        entry["start_time"] = start_time
         experiment = entry.create_group("experiment_description")
+        experiment["start_time"] = start_time
         if "description" in doc:
             desc = doc.pop("description")
             experiment["experiment_description"] = desc
@@ -702,15 +702,15 @@ class Serializer(event_model.DocumentRouter):
                 name="time", data=time.astype(bytes), chunks=(1,), maxshape=(None,)
             )
             stream_group.create_dataset(
-                name="time_since_start", data=since, chunks=(1,), maxshape=(None,)
+                name="ElapsedTime", data=since, chunks=(1,), maxshape=(None,)
             )
         else:
             stream_group["time"].resize((stream_group["time"].shape[0] + 1,))
             stream_group["time"][-1] = time.astype(bytes)
-            stream_group["time_since_start"].resize(
-                (stream_group["time_since_start"].shape[0] + 1,)
+            stream_group["ElapsedTime"].resize(
+                (stream_group["ElapsedTime"].shape[0] + 1,)
             )
-            stream_group["time_since_start"][-1] = since
+            stream_group["ElapsedTime"][-1] = since
         for ep_data_key, ep_data_list in doc["data"].items():
             metadata = self._stream_metadata[doc["descriptor"]][ep_data_key]
             if ep_data_key not in self._channels_in_streams:
@@ -779,7 +779,7 @@ class Serializer(event_model.DocumentRouter):
         super().stop(doc)
         end_time = doc["time"]
         end_time = timestamp_to_ISO8601(end_time)
-        self._entry["end_time"] = end_time
+        self._entry["experiment_description"]["end_time"] = end_time
 
         for ch, stream_docs in self._channels_in_streams.items():
             if ch not in self._channel_links:
@@ -875,7 +875,7 @@ class Serializer(event_model.DocumentRouter):
                     fg["time"] = isos
                     since = np.array(timestamps)
                     since -= self._start_time
-                    fg["time_since_start"] = since
+                    fg["ElapsedTime"] = since
                     fg["covariance"] = covars
                     fg["covariance"].attrs["parameters"] = param_names[: len(covars[0])]
                     param_values = get_param_dict(param_values)
