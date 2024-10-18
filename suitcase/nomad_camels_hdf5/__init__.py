@@ -880,10 +880,10 @@ class Serializer(event_model.DocumentRouter):
                     timestamps, covars, param_values = sort_by_list(
                         timestamps, [covars, param_values]
                     )
-                    isos = []
-                    for t in timestamps:
-                        isos.append(timestamp_to_ISO8601(t))
-                    fg["time"] = isos
+                    # isos = []
+                    # for t in timestamps:
+                    #     isos.append(timestamp_to_ISO8601(t))
+                    fg["time"] = timestamps
                     since = np.array(timestamps)
                     since -= self._start_time
                     fg["ElapsedTime"] = since
