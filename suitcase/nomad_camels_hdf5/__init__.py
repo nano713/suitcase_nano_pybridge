@@ -368,6 +368,7 @@ class Serializer(event_model.DocumentRouter):
         file_prefix="{uid}-",
         plot_data=None,
         new_file_each=True,
+        do_nexus_output=False,
         **kwargs,
     ):
 
@@ -388,6 +389,7 @@ class Serializer(event_model.DocumentRouter):
         self._current_stream = None
         self._channel_metadata = {}
         self._entry_name = ""
+        self.do_nexus_output = do_nexus_output
 
         if isinstance(directory, (str, Path)):
             # The user has given us a filepath; they want files.
@@ -901,7 +903,8 @@ class Serializer(event_model.DocumentRouter):
                 if len(signals) > 1:
                     group.attrs["auxiliary_signals"] = signals[1:]
 
-        self.make_nexus_structure()
+        if self.do_nexus_output:
+            self.make_nexus_structure()
 
         self.close()
 

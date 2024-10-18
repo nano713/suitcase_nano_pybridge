@@ -12,7 +12,7 @@ pip install suitcase-nomad-camels-hdf5
 
 # Changelog
 
-## 1.0.0 Major metadata overhaul ???
+## 1.0.0 Major metadata overhaul
 Changes:
 - The entry / file name is now only numbered, the timestamp was removed
 - Split up sensors and outputs
@@ -21,6 +21,7 @@ Changes:
 - moved start and end time into exp-description
 - renamed time_since_start to ElapsedTime to be consistent with wording in CAMELS
 - time is now a float timestamp, not anymore in ISO format
+- supporting optional NeXus output
 
 ### 0.3.1
 Improved the NOMAD identifier for samples, user and instruments
