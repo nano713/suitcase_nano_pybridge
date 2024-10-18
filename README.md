@@ -20,6 +20,7 @@ Changes:
 - The sorting of what goes in the fabrication inside one instrument was changed
 - moved start and end time into exp-description
 - renamed time_since_start to ElapsedTime to be consistent with wording in CAMELS
+- time is now a float timestamp, not anymore in ISO format
 
 ### 0.3.1
 Improved the NOMAD identifier for samples, user and instruments

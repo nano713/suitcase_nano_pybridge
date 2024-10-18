@@ -703,18 +703,19 @@ class Serializer(event_model.DocumentRouter):
         else:
             self._stream_counter[-1][1] += 1
         self._stream_counter
-        time = np.asarray([timestamp_to_ISO8601(doc["time"][0])])
+        # time = np.asarray([timestamp_to_ISO8601(doc["time"][0])])
+        time = np.asarray([doc["time"][0]])
         since = np.asarray([doc["time"][0] - self._start_time])
         if "time" not in stream_group.keys():
             stream_group.create_dataset(
-                name="time", data=time.astype(bytes), chunks=(1,), maxshape=(None,)
+                name="time", data=time, chunks=(1,), maxshape=(None,)
             )
             stream_group.create_dataset(
                 name="ElapsedTime", data=since, chunks=(1,), maxshape=(None,)
             )
         else:
             stream_group["time"].resize((stream_group["time"].shape[0] + 1,))
-            stream_group["time"][-1] = time.astype(bytes)
+            stream_group["time"][-1] = time
             stream_group["ElapsedTime"].resize(
                 (stream_group["ElapsedTime"].shape[0] + 1,)
             )
