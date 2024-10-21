@@ -12,7 +12,7 @@ pip install suitcase-nomad-camels-hdf5
 
 # Changelog
 
-## 0.4.0 Major metadata overhaul
+## 0.4.2 Major metadata overhaul
 Changes:
 - The entry / file name is now only numbered, the timestamp was removed
 - Split up sensors and outputs
