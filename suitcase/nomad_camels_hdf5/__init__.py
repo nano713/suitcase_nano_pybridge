@@ -506,6 +506,7 @@ class Serializer(event_model.DocumentRouter):
         entry = self._h5_output_file.create_group(entry_name)
         self._entry = entry
         entry.attrs["NX_class"] = "NXentry"
+        # entry.attrs['NX_class'] = "NXcollection"
         # entry["definition"] = "NXsensor_scan"
         if "versions" in doc and set(doc["versions"].keys()) == {
             "bluesky",
@@ -543,6 +544,7 @@ class Serializer(event_model.DocumentRouter):
             recourse_entry_dict(experiment["protocol_variables"], doc.pop("variables"))
         program = entry.create_group("program")
         program["program_name"] = "NOMAD CAMELS"
+        program["program_url"] = "https://fau-lap.github.io/NOMAD-CAMELS/"
         # proc["program"].attrs["version"] = "0.1"
         # proc["program"].attrs["program_url"] = "https://github.com/FAU-LAP/NOMAD-CAMELS"
         # version_dict = doc.pop("versions") if "versions" in doc else {}
@@ -928,17 +930,16 @@ class Serializer(event_model.DocumentRouter):
         )
         process = nx_group.create_group("process")
         process.attrs["NX_class"] = "NXprocess"
-        process["program"] = ""
-        process["program"].attrs["version"] = ""
-        process["program"].attrs["program_url"] = ""
+        process["program"] = h5py.SoftLink(f"/{self._entry_name}/program/program_name")
+        process["program"].attrs["version"] = self._entry["program"]["version"]
+        process["program"].attrs["program_url"] = self._entry["program"]["program_url"]
         nx_group["user"] = h5py.SoftLink(f"/{self._entry_name}/user")
         nx_group["sample"] = h5py.SoftLink(f"/{self._entry_name}/sample")
         for dev in self._entry["instruments"]:
             nx_group[dev] = h5py.SoftLink(f"/{self._entry_name}/instruments/{dev}")
             nx_group[dev].create_group("environment")
             nx_group[dev]["environment"].attrs["NX_class"] = "NXenvironment"
-            nx_group[dev]["environment"]["independent_controllers"] = ""
-            nx_group[dev]["environment"]["measurement_sensors"] = ""
+            sensors = []
             for sensor in nx_group[dev]["sensors"]:
                 nx_group[dev]["environment"][sensor] = h5py.SoftLink(
                     f"/{self._entry_name}/instruments/{dev}/sensors/{sensor}"
@@ -949,10 +950,23 @@ class Serializer(event_model.DocumentRouter):
                     "description"
                 ] = ""
                 nx_group[dev]["environment"][sensor]["value"] = 0.0
+                sensors.append(sensor)
+            for controller in nx_group[dev]["outputs"]:
+                nx_group[dev]["environment"][controller] = h5py.SoftLink(
+                    f"/{self._entry_name}/instruments/{dev}/outputs/{controller}"
+                )
             nx_group[dev]["environment"].create_group("pid")
             nx_group[dev]["environment"]["pid"].attrs["NX_class"] = "NXpid"
+            nx_group[dev]["environment"]["independent_controllers"] = ""
+            nx_group[dev]["environment"]["measurement_sensors"] = " ".join(sensors)
         nx_group["data"] = h5py.SoftLink(f"/{self._entry_name}/data")
         for dat in self._entry["data"]:
             # check if group has attribute NX_class as NXdata
             if self._entry["data"][dat].attrs.get("NX_class") == "NXdata":
                 nx_group[dat] = h5py.SoftLink(f"/{self._entry_name}/data/{dat}")
+        additionals = nx_group.create_group("additional_information")
+        additionals.attrs["NX_class"] = "NXcollection"
+        additionals["experiment_details"] = h5py.SoftLink(
+            f"/{self._entry_name}/experiment_details"
+        )
+        additionals["program"] = h5py.SoftLink(f"/{self._entry_name}/program")
