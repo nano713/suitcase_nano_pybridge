@@ -948,6 +948,8 @@ class Serializer(event_model.DocumentRouter):
             nx_group[dev].create_group("environment")
             nx_group[dev]["environment"].attrs["NX_class"] = "NXenvironment"
             sensors = []
+            if "sensors" not in nx_group[dev]:
+                nx_group[dev].create_group("sensors")
             for sensor in nx_group[dev]["sensors"]:
                 nx_group[dev]["environment"][sensor] = h5py.SoftLink(
                     f"/{self._entry_name}/instruments/{dev}/sensors/{sensor}"
@@ -959,6 +961,8 @@ class Serializer(event_model.DocumentRouter):
                 ] = ""
                 nx_group[dev]["environment"][sensor]["value"] = 0.0
                 sensors.append(sensor)
+            if "outputs" not in nx_group[dev]:
+                nx_group[dev].create_group("outputs")
             for controller in nx_group[dev]["outputs"]:
                 nx_group[dev]["environment"][controller] = h5py.SoftLink(
                     f"/{self._entry_name}/instruments/{dev}/outputs/{controller}"

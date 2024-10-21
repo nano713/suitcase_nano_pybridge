@@ -12,9 +12,6 @@ pip install suitcase-nomad-camels-hdf5
 
 # Changelog
 
-### 0.4.1
-Fixed problem with version in NX
-
 ## 0.4.0 Major metadata overhaul
 Changes:
 - The entry / file name is now only numbered, the timestamp was removed
