@@ -931,8 +931,16 @@ class Serializer(event_model.DocumentRouter):
         process = nx_group.create_group("process")
         process.attrs["NX_class"] = "NXprocess"
         process["program"] = h5py.SoftLink(f"/{self._entry_name}/program/program_name")
-        process["program"].attrs["version"] = self._entry["program"]["version"]
-        process["program"].attrs["program_url"] = self._entry["program"]["program_url"]
+        try:
+            version = self._entry["program"]["version"]
+        except:
+            version = ""
+        try:
+            program_url = self._entry["program"]["program_url"]
+        except:
+            program_url = ""
+        process["program"].attrs["version"] = version
+        process["program"].attrs["program_url"] = program_url
         nx_group["user"] = h5py.SoftLink(f"/{self._entry_name}/user")
         nx_group["sample"] = h5py.SoftLink(f"/{self._entry_name}/sample")
         for dev in self._entry["instruments"]:
