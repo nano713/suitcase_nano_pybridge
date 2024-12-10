@@ -78,7 +78,7 @@ def export(
 
     >>> export(gen, '', '{plan_name}-{motors}-')
 
-    Include the experiment's start time formatted as YYYY-MM-DD_HH-MM.
+    Include the measurement's start time formatted as YYYY-MM-DD_HH-MM.
 
     >>> export(gen, '', '{time:%Y-%m-%d_%H:%M}-')
 
@@ -371,7 +371,6 @@ class Serializer(event_model.DocumentRouter):
         do_nexus_output=False,
         **kwargs,
     ):
-
         self._kwargs = kwargs
         self._directory = directory
         self._file_prefix = file_prefix
@@ -513,35 +512,52 @@ class Serializer(event_model.DocumentRouter):
             "ophyd",
         }:
             doc.pop("versions")
-        experiment = entry.create_group("experiment_details")
-        experiment["start_time"] = start_time
+        measurement = entry.create_group("measurement_details")
+        measurement["start_time"] = start_time
         if "description" in doc:
             desc = doc.pop("description")
-            experiment["experiment_description"] = desc
+            measurement["protocol_description"] = desc
         if "identifier" in doc:
             ident = doc.pop("identifier")
-            experiment["experiment_identifier"] = ident
+            measurement["measurement_identifier"] = ident
         if "protocol_json" in doc:
-            experiment["protocol_json"] = doc.pop("protocol_json")
+            measurement["protocol_json"] = doc.pop("protocol_json")
         if "plan_name" in doc:
-            experiment["plan_name"] = doc.pop("plan_name")
+            measurement["plan_name"] = doc.pop("plan_name")
         if "plan_type" in doc:
-            experiment["plan_type"] = doc.pop("plan_type")
+            measurement["plan_type"] = doc.pop("plan_type")
         if "protocol_overview" in doc:
-            experiment["protocol_overview"] = doc.pop("protocol_overview")
+            measurement["protocol_overview"] = doc.pop("protocol_overview")
         if "python_script" in doc:
-            experiment["python_script"] = doc.pop("python_script")
+            measurement["python_script"] = doc.pop("python_script")
         if "scan_id" in doc:
-            experiment["scan_id"] = doc.pop("scan_id")
+            measurement["scan_id"] = doc.pop("scan_id")
         if "session_name" in doc:
-            experiment["session_name"] = doc.pop("session_name")
+            measurement["session_name"] = doc.pop("session_name")
         uid = None
         if "uid" in doc:
             uid = doc.pop("uid")
-            experiment["uid"] = uid
+            measurement["uid"] = uid
         if "variables" in doc:
-            experiment.create_group("protocol_variables")
-            recourse_entry_dict(experiment["protocol_variables"], doc.pop("variables"))
+            measurement.create_group("protocol_variables")
+            recourse_entry_dict(measurement["protocol_variables"], doc.pop("variables"))
+        if "measurement_tags" in doc:
+            measurement["measurement_tags"] = doc.pop("measurement_tags")
+        # TODO: remove this
+        else:
+            measurement["measurement_tags"] = "test1, test2, test3; smu dmm"
+        if "measurement_description" in doc:
+            measurement["measurement_description"] = doc.pop("measurement_description")
+        # TODO: remove this
+        else:
+            measurement["measurement_description"] = (
+                "This is a test measurement description"
+            )
+        if "measurement_comments" in doc:
+            measurement["measurement_comments"] = doc.pop("measurement_comments")
+        # TODO: remove this
+        else:
+            measurement["measurement_comments"] = "This is a test measurement comment"
         program = entry.create_group("program")
         program["program_name"] = "NOMAD CAMELS"
         program["program_url"] = "https://fau-lap.github.io/NOMAD-CAMELS/"
@@ -792,7 +808,7 @@ class Serializer(event_model.DocumentRouter):
         super().stop(doc)
         end_time = doc["time"]
         end_time = timestamp_to_ISO8601(end_time)
-        self._entry["experiment_details"]["end_time"] = end_time
+        self._entry["measurement_details"]["end_time"] = end_time
 
         for ch, stream_docs in self._channels_in_streams.items():
             if ch not in self._channel_links:
@@ -919,14 +935,14 @@ class Serializer(event_model.DocumentRouter):
         nx_group.attrs["NX_class"] = "NXentry"
         nx_group["definition"] = "NXsensor_scan"
         nx_group["definition"].attrs["version"] = ""
-        nx_group["experiment_description"] = h5py.SoftLink(
-            f"/{self._entry_name}/experiment_details/experiment_description"
+        nx_group["measurement_description"] = h5py.SoftLink(
+            f"/{self._entry_name}/measurement_details/measurement_description"
         )
         nx_group["start_time"] = h5py.SoftLink(
-            f"/{self._entry_name}/experiment_details/start_time"
+            f"/{self._entry_name}/measurement_details/start_time"
         )
         nx_group["end_time"] = h5py.SoftLink(
-            f"/{self._entry_name}/experiment_details/end_time"
+            f"/{self._entry_name}/measurement_details/end_time"
         )
         process = nx_group.create_group("process")
         process.attrs["NX_class"] = "NXprocess"
@@ -978,7 +994,7 @@ class Serializer(event_model.DocumentRouter):
                 nx_group[dat] = h5py.SoftLink(f"/{self._entry_name}/data/{dat}")
         additionals = nx_group.create_group("additional_information")
         additionals.attrs["NX_class"] = "NXcollection"
-        additionals["experiment_details"] = h5py.SoftLink(
-            f"/{self._entry_name}/experiment_details"
+        additionals["measurement_details"] = h5py.SoftLink(
+            f"/{self._entry_name}/measurement_details"
         )
         additionals["program"] = h5py.SoftLink(f"/{self._entry_name}/program")
