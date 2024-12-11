@@ -11,6 +11,12 @@ pip install suitcase-nomad-camels-hdf5
 
 
 # Changelog
+## 0.4.3
+Changes:
+- "experiment" renamed to "measurement"
+
+Fixes:
+- session name does not appear twice in filename anymore
 
 ## 0.4.2 Major metadata overhaul
 Changes:
