@@ -546,11 +546,6 @@ class Serializer(event_model.DocumentRouter):
             measurement["measurement_tags"] = doc.pop("measurement_tags")
         if "measurement_description" in doc:
             measurement["measurement_description"] = doc.pop("measurement_description")
-        if "measurement_comments" in doc:
-            measurement["measurement_comments"] = doc.pop("measurement_comments")
-        # TODO: remove this
-        else:
-            measurement["measurement_comments"] = "This is a test measurement comment"
         program = entry.create_group("program")
         program["program_name"] = "NOMAD CAMELS"
         program["program_url"] = "https://fau-lap.github.io/NOMAD-CAMELS/"
@@ -694,6 +689,9 @@ class Serializer(event_model.DocumentRouter):
             raise ValueError(f"Stream {stream_name} already exists.")
         if stream_name == "primary":
             stream_group = self._data_entry
+        elif stream_name == "_live_metadata_reading_":
+            self._stream_groups[doc["uid"]] = stream_name
+            return
         else:
             stream_group = self._data_entry.create_group(stream_name)
             stream_group.attrs["NX_class"] = "NXdata"
@@ -709,6 +707,12 @@ class Serializer(event_model.DocumentRouter):
         super().event_page(doc)
         stream_group = self._stream_groups.get(doc["descriptor"], None)
         if stream_group is None:
+            return
+        elif stream_group == "_live_metadata_reading_":
+            # take the single entries from the metadata and write them in the info
+            meas_group = self._entry["measurement_details"]
+            for info in doc["data"]["live_metadata"][0]._fields:
+                meas_group[info] = doc["data"]["live_metadata"][0]._asdict()[info]
             return
         if self._current_stream != doc["descriptor"]:
             self._current_stream = doc["descriptor"]
