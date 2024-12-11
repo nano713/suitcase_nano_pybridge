@@ -287,9 +287,10 @@ class FileManager:
         ):
             entry_name_non_iso = clean_filename(entry_name)
             abs_file_path = abs_file_path.as_posix()
-            abs_file_path = (
-                os.path.splitext(abs_file_path)[0] + f"_{entry_name_non_iso}.nxs"
-            )
+            if not abs_file_path.endswith(f"{entry_name_non_iso}.nxs"):
+                abs_file_path = (
+                    os.path.splitext(abs_file_path)[0] + f"_{entry_name_non_iso}.nxs"
+                )
         i = 1
         while (
             (abs_file_path in self._reserved_names)
@@ -543,16 +544,8 @@ class Serializer(event_model.DocumentRouter):
             recourse_entry_dict(measurement["protocol_variables"], doc.pop("variables"))
         if "measurement_tags" in doc:
             measurement["measurement_tags"] = doc.pop("measurement_tags")
-        # TODO: remove this
-        else:
-            measurement["measurement_tags"] = "test1, test2, test3; smu dmm"
         if "measurement_description" in doc:
             measurement["measurement_description"] = doc.pop("measurement_description")
-        # TODO: remove this
-        else:
-            measurement["measurement_description"] = (
-                "This is a test measurement description"
-            )
         if "measurement_comments" in doc:
             measurement["measurement_comments"] = doc.pop("measurement_comments")
         # TODO: remove this
