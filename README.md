@@ -11,7 +11,7 @@ pip install suitcase-nomad-camels-hdf5
 
 
 # Changelog
-## 0.4.3
+### 0.4.3
 Changes:
 - "experiment" renamed to "measurement"
 
