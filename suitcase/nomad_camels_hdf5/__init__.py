@@ -78,7 +78,7 @@ def export(
 
     >>> export(gen, '', '{plan_name}-{motors}-')
 
-    Include the experiment's start time formatted as YYYY-MM-DD_HH-MM.
+    Include the measurement's start time formatted as YYYY-MM-DD_HH-MM.
 
     >>> export(gen, '', '{time:%Y-%m-%d_%H:%M}-')
 
@@ -287,9 +287,21 @@ class FileManager:
         ):
             entry_name_non_iso = clean_filename(entry_name)
             abs_file_path = abs_file_path.as_posix()
-            abs_file_path = (
-                os.path.splitext(abs_file_path)[0] + f"_{entry_name_non_iso}.nxs"
-            )
+            if not abs_file_path.endswith(f"{entry_name_non_iso}.nxs"):
+                abs_file_path = (
+                    os.path.splitext(abs_file_path)[0] + f"_{entry_name_non_iso}.nxs"
+                )
+        i = 1
+        while (
+            (abs_file_path in self._reserved_names)
+            or os.path.isfile(abs_file_path)
+            and self._new_file_each
+        ):
+            if abs_file_path.endswith(f"_{i-1}.nxs"):
+                abs_file_path = abs_file_path.replace(f"_{i-1}.nxs", f"_{i}.nxs")
+            else:
+                abs_file_path = os.path.splitext(abs_file_path)[0] + f"_{i}.nxs"
+            i += 1
         self._reserved_names.add(abs_file_path)
         self._artifacts[entry_name].append(abs_file_path)
         return abs_file_path
@@ -357,9 +369,9 @@ class Serializer(event_model.DocumentRouter):
         file_prefix="{uid}-",
         plot_data=None,
         new_file_each=True,
+        do_nexus_output=False,
         **kwargs,
     ):
-
         self._kwargs = kwargs
         self._directory = directory
         self._file_prefix = file_prefix
@@ -376,6 +388,8 @@ class Serializer(event_model.DocumentRouter):
         self._stream_counter = []
         self._current_stream = None
         self._channel_metadata = {}
+        self._entry_name = ""
+        self.do_nexus_output = do_nexus_output
 
         if isinstance(directory, (str, Path)):
             # The user has given us a filepath; they want files.
@@ -462,51 +476,94 @@ class Serializer(event_model.DocumentRouter):
         # As in, '{uid}' -> 'c1790369-e4b2-46c7-a294-7abfa239691a'
         # or 'my-data-from-{plan-name}' -> 'my-data-from-scan'
         super().start(doc)
-        if isinstance(doc, databroker.core.Start):
-            doc = dict(doc)
+        # if isinstance(doc, databroker.core.Start):
+        doc = dict(doc)  # convert to dict or make a copy
         self._templated_file_prefix = self._file_prefix.format(**doc)
         if self._templated_file_prefix.endswith(".nxs"):
             relative_path = Path(self._templated_file_prefix)
         else:
             relative_path = Path(f"{self._templated_file_prefix}.nxs")
-        entry_name = ""
-        if "session_name" in doc:
-            entry_name = doc["session_name"] + "_"
+        entry_name = "entry"
+        if "session_name" in doc and doc["session_name"]:
+            entry_name = doc["session_name"]
         start_time = doc["time"]
         start_time = timestamp_to_ISO8601(start_time)
-        self._start_time = doc["time"]
-        entry_name += start_time
+        self._start_time = doc.pop("time")
 
         self._h5_output_file = self._manager.open(
             entry_name=entry_name, relative_file_path=relative_path, mode="a"
         )
+        i = 1
+        self._h5_output_file.attrs["NX_class"] = "NXroot"
+        entry_name = "CAMELS_" + entry_name
+        while entry_name in self._h5_output_file:
+            if entry_name.endswith(f"_{i-1}"):
+                entry_name = entry_name.replace(f"_{i-1}", f"_{i}")
+            else:
+                entry_name += f"_{i}"
+            i += 1
+        self._entry_name = entry_name
         entry = self._h5_output_file.create_group(entry_name)
         self._entry = entry
         entry.attrs["NX_class"] = "NXentry"
-        entry["definition"] = "NXsensor_scan"
-        entry["start_time"] = start_time
+        # entry.attrs['NX_class'] = "NXcollection"
+        # entry["definition"] = "NXsensor_scan"
+        if "versions" in doc and set(doc["versions"].keys()) == {
+            "bluesky",
+            "ophyd",
+        }:
+            doc.pop("versions")
+        measurement = entry.create_group("measurement_details")
+        measurement["start_time"] = start_time
         if "description" in doc:
             desc = doc.pop("description")
-            entry["experiment_description"] = desc
+            measurement["protocol_description"] = desc
         if "identifier" in doc:
             ident = doc.pop("identifier")
-            entry["experiment_identifier"] = ident
-        proc = entry.create_group("process")
-        proc.attrs["NX_class"] = "NXprocess"
-        proc["program"] = "NOMAD CAMELS"
-        proc["program"].attrs["version"] = "0.1"
-        proc["program"].attrs["program_url"] = "https://github.com/FAU-LAP/NOMAD-CAMELS"
-        version_dict = doc.pop("versions") if "versions" in doc else {}
-        vers_group = proc.create_group("versions")
-        py_environment = proc.create_group("python_environment")
+            measurement["measurement_identifier"] = ident
+        if "protocol_json" in doc:
+            measurement["protocol_json"] = doc.pop("protocol_json")
+        if "plan_name" in doc:
+            measurement["plan_name"] = doc.pop("plan_name")
+        if "plan_type" in doc:
+            measurement["plan_type"] = doc.pop("plan_type")
+        if "protocol_overview" in doc:
+            measurement["protocol_overview"] = doc.pop("protocol_overview")
+        if "python_script" in doc:
+            measurement["python_script"] = doc.pop("python_script")
+        if "scan_id" in doc:
+            measurement["scan_id"] = doc.pop("scan_id")
+        if "session_name" in doc:
+            measurement["session_name"] = doc.pop("session_name")
+        uid = None
+        if "uid" in doc:
+            uid = doc.pop("uid")
+            measurement["uid"] = uid
+        if "variables" in doc:
+            measurement.create_group("protocol_variables")
+            recourse_entry_dict(measurement["protocol_variables"], doc.pop("variables"))
+        if "measurement_tags" in doc:
+            measurement["measurement_tags"] = doc.pop("measurement_tags")
+        if "measurement_description" in doc:
+            measurement["measurement_description"] = doc.pop("measurement_description")
+        program = entry.create_group("program")
+        program["program_name"] = "NOMAD CAMELS"
+        program["program_url"] = "https://fau-lap.github.io/NOMAD-CAMELS/"
+        # proc["program"].attrs["version"] = "0.1"
+        # proc["program"].attrs["program_url"] = "https://github.com/FAU-LAP/NOMAD-CAMELS"
+        # version_dict = doc.pop("versions") if "versions" in doc else {}
+        # vers_group = proc.create_group("versions")
+        py_environment = program.create_group("python_environment")
         py_environment.attrs["python_version"] = sys.version
         for x in importlib.metadata.distributions():
             name = x.metadata["Name"]
             if name not in py_environment.keys():
+                if name == "nomad_camels":
+                    program["version"] = x.version
                 py_environment[x.metadata["Name"]] = x.version
             # except Exception as e:
             #     print(e, x.metadata['Name'])
-        recourse_entry_dict(vers_group, version_dict)
+        # recourse_entry_dict(vers_group, version_dict)
         user = entry.create_group("user")
         user.attrs["NX_class"] = "NXuser"
         user_data = doc.pop("user") if "user" in doc else {}
@@ -534,6 +591,8 @@ class Serializer(event_model.DocumentRouter):
             id_group = sample.create_group("identifier")
             id_group.attrs["NX_class"] = "NXidentifier"
             id_group["identifier"] = sample_data.pop("identifier")
+            if "full_identifier" in sample_data:
+                id_group["full_identifier"] = sample_data.pop("full_identifier")
             if "ELN-service" in sample_data:
                 id_group["service"] = sample_data.pop("ELN-service")
             else:
@@ -541,41 +600,50 @@ class Serializer(event_model.DocumentRouter):
         recourse_entry_dict(sample, sample_data)
 
         instr = entry.create_group("instruments")
-        instr.attrs["NX_class"] = "NXinstrument"
+        # instr.attrs["NX_class"] = "NXinstrument"
         device_data = doc.pop("devices") if "devices" in doc else {}
         for dev, dat in device_data.items():
             dev_group = instr.create_group(dev)
             dev_group.attrs["NX_class"] = "NXinstrument"
-            if "idn" in dat:
-                dev_group["model"] = dat.pop("idn")
-            else:
-                dev_group["model"] = dat["device_class_name"]
             if "instrument_camels_channels" in dat:
                 sensor_group = dev_group.create_group("sensors")
+                output_group = dev_group.create_group("outputs")
                 channel_dict = dat.pop("instrument_camels_channels")
                 for ch, ch_dat in channel_dict.items():
+                    is_output = ch_dat.pop("output")
                     ch_dat = dict(ch_dat)
-                    sensor = sensor_group.create_group(
-                        ch_dat.pop("name").split(".")[-1]
-                    )
-                    sensor.attrs["NX_class"] = "NXsensor"
+                    if is_output:
+                        sensor = output_group.create_group(
+                            ch_dat.pop("name").split(".")[-1]
+                        )
+                        sensor.attrs["NX_class"] = "NXactuator"
+                    else:
+                        sensor = sensor_group.create_group(
+                            ch_dat.pop("name").split(".")[-1]
+                        )
+                        sensor.attrs["NX_class"] = "NXsensor"
                     sensor["name"] = ch
-                    sensor["is_output"] = ch_dat.pop("output")
 
                     metadata = ch_dat.pop("metadata")
                     recourse_entry_dict(sensor, metadata)
                     self._channel_metadata[ch] = metadata
                     recourse_entry_dict(sensor, ch_dat)
                     self._channel_links[ch] = sensor
+            fab_group = dev_group.create_group("fabrication")
+            fab_group.attrs["NX_class"] = "NXfabrication"
+            if "idn" in dat:
+                fab_group["model"] = dat.pop("idn")
+            else:
+                fab_group["model"] = dat["device_class_name"]
             dev_group["name"] = dat.pop("device_class_name")
             dev_group["short_name"] = dev
             # settings = dev_group.create_group("settings")
-            fab_group = dev_group.create_group("fabrication")
-            fab_group.attrs["NX_class"] = "NXfabrication"
             if "ELN-instrument-id" in dat and dat["ELN-instrument-id"]:
                 id_group = fab_group.create_group("identifier")
                 id_group.attrs["NX_class"] = "NXidentifier"
                 id_group["identifier"] = dat.pop("ELN-instrument-id")
+                if "full_identifier" in dat:
+                    id_group["full_identifier"] = dat.pop("full_identifier")
                 if "ELN-service" in dat:
                     id_group["service"] = dat.pop("ELN-service")
                 else:
@@ -588,13 +656,29 @@ class Serializer(event_model.DocumentRouter):
                     id_group["service"] = dat.pop("ELN-service")
                 else:
                     id_group["service"] = "unknown"
+            if "ELN-metadata" in dat:
+                recourse_entry_dict(
+                    fab_group, {"ELN-metadata": dat.pop("ELN-metadata")}
+                )
 
-            recourse_entry_dict(fab_group, dat)
+            used_keys = []
+            for key, val in dat.items():
+                if key.startswith("python_file_"):
+                    if not "driver_files" in dev_group:
+                        dev_group.create_group("driver_files")
+                    dev_group["driver_files"][key] = val
+                    used_keys.append(key)
+            for key in used_keys:
+                dat.pop(key)
+
+            recourse_entry_dict(dev_group, dat)
 
         recourse_entry_dict(entry, doc)
 
         self._data_entry = entry.create_group("data")
         self._data_entry.attrs["NX_class"] = "NXdata"
+        if uid is not None:
+            doc["uid"] = uid
 
     def descriptor(self, doc):
         super().descriptor(doc)
@@ -605,6 +689,9 @@ class Serializer(event_model.DocumentRouter):
             raise ValueError(f"Stream {stream_name} already exists.")
         if stream_name == "primary":
             stream_group = self._data_entry
+        elif stream_name == "_live_metadata_reading_":
+            self._stream_groups[doc["uid"]] = stream_name
+            return
         else:
             stream_group = self._data_entry.create_group(stream_name)
             stream_group.attrs["NX_class"] = "NXdata"
@@ -621,28 +708,35 @@ class Serializer(event_model.DocumentRouter):
         stream_group = self._stream_groups.get(doc["descriptor"], None)
         if stream_group is None:
             return
+        elif stream_group == "_live_metadata_reading_":
+            # take the single entries from the metadata and write them in the info
+            meas_group = self._entry["measurement_details"]
+            for info in doc["data"]["live_metadata"][0]._fields:
+                meas_group[info] = doc["data"]["live_metadata"][0]._asdict()[info]
+            return
         if self._current_stream != doc["descriptor"]:
             self._current_stream = doc["descriptor"]
             self._stream_counter.append([doc["descriptor"], 1])
         else:
             self._stream_counter[-1][1] += 1
         self._stream_counter
-        time = np.asarray([timestamp_to_ISO8601(doc["time"][0])])
+        # time = np.asarray([timestamp_to_ISO8601(doc["time"][0])])
+        time = np.asarray([doc["time"][0]])
         since = np.asarray([doc["time"][0] - self._start_time])
         if "time" not in stream_group.keys():
             stream_group.create_dataset(
-                name="time", data=time.astype(bytes), chunks=(1,), maxshape=(None,)
+                name="time", data=time, chunks=(1,), maxshape=(None,)
             )
             stream_group.create_dataset(
-                name="time_since_start", data=since, chunks=(1,), maxshape=(None,)
+                name="ElapsedTime", data=since, chunks=(1,), maxshape=(None,)
             )
         else:
             stream_group["time"].resize((stream_group["time"].shape[0] + 1,))
-            stream_group["time"][-1] = time.astype(bytes)
-            stream_group["time_since_start"].resize(
-                (stream_group["time_since_start"].shape[0] + 1,)
+            stream_group["time"][-1] = time
+            stream_group["ElapsedTime"].resize(
+                (stream_group["ElapsedTime"].shape[0] + 1,)
             )
-            stream_group["time_since_start"][-1] = since
+            stream_group["ElapsedTime"][-1] = since
         for ep_data_key, ep_data_list in doc["data"].items():
             metadata = self._stream_metadata[doc["descriptor"]][ep_data_key]
             if ep_data_key not in self._channels_in_streams:
@@ -711,7 +805,7 @@ class Serializer(event_model.DocumentRouter):
         super().stop(doc)
         end_time = doc["time"]
         end_time = timestamp_to_ISO8601(end_time)
-        self._entry["end_time"] = end_time
+        self._entry["measurement_details"]["end_time"] = end_time
 
         for ch, stream_docs in self._channels_in_streams.items():
             if ch not in self._channel_links:
@@ -801,13 +895,13 @@ class Serializer(event_model.DocumentRouter):
                     timestamps, covars, param_values = sort_by_list(
                         timestamps, [covars, param_values]
                     )
-                    isos = []
-                    for t in timestamps:
-                        isos.append(timestamp_to_ISO8601(t))
-                    fg["time"] = isos
+                    # isos = []
+                    # for t in timestamps:
+                    #     isos.append(timestamp_to_ISO8601(t))
+                    fg["time"] = timestamps
                     since = np.array(timestamps)
                     since -= self._start_time
-                    fg["time_since_start"] = since
+                    fg["ElapsedTime"] = since
                     fg["covariance"] = covars
                     fg["covariance"].attrs["parameters"] = param_names[: len(covars[0])]
                     param_values = get_param_dict(param_values)
@@ -824,4 +918,80 @@ class Serializer(event_model.DocumentRouter):
                 if len(signals) > 1:
                     group.attrs["auxiliary_signals"] = signals[1:]
 
+        if self.do_nexus_output:
+            self.make_nexus_structure()
+
         self.close()
+
+    def make_nexus_structure(self):
+        if self._entry_name.startswith("CAMELS_"):
+            nexus_name = "NeXus_" + self._entry_name[7:]
+        else:
+            nexus_name = "NeXus_" + self._entry_name
+        nx_group = self._h5_output_file.create_group(nexus_name)
+        nx_group.attrs["NX_class"] = "NXentry"
+        nx_group["definition"] = "NXsensor_scan"
+        nx_group["definition"].attrs["version"] = ""
+        nx_group["measurement_description"] = h5py.SoftLink(
+            f"/{self._entry_name}/measurement_details/measurement_description"
+        )
+        nx_group["start_time"] = h5py.SoftLink(
+            f"/{self._entry_name}/measurement_details/start_time"
+        )
+        nx_group["end_time"] = h5py.SoftLink(
+            f"/{self._entry_name}/measurement_details/end_time"
+        )
+        process = nx_group.create_group("process")
+        process.attrs["NX_class"] = "NXprocess"
+        process["program"] = h5py.SoftLink(f"/{self._entry_name}/program/program_name")
+        try:
+            version = self._entry["program"]["version"]
+        except:
+            version = ""
+        try:
+            program_url = self._entry["program"]["program_url"]
+        except:
+            program_url = ""
+        process["program"].attrs["version"] = version
+        process["program"].attrs["program_url"] = program_url
+        nx_group["user"] = h5py.SoftLink(f"/{self._entry_name}/user")
+        nx_group["sample"] = h5py.SoftLink(f"/{self._entry_name}/sample")
+        for dev in self._entry["instruments"]:
+            nx_group[dev] = h5py.SoftLink(f"/{self._entry_name}/instruments/{dev}")
+            nx_group[dev].create_group("environment")
+            nx_group[dev]["environment"].attrs["NX_class"] = "NXenvironment"
+            sensors = []
+            if "sensors" not in nx_group[dev]:
+                nx_group[dev].create_group("sensors")
+            for sensor in nx_group[dev]["sensors"]:
+                nx_group[dev]["environment"][sensor] = h5py.SoftLink(
+                    f"/{self._entry_name}/instruments/{dev}/sensors/{sensor}"
+                )
+                nx_group[dev]["environment"][sensor]["calibration_time"] = ""
+                nx_group[dev]["environment"][sensor]["run_control"] = ""
+                nx_group[dev]["environment"][sensor]["run_control"].attrs[
+                    "description"
+                ] = ""
+                nx_group[dev]["environment"][sensor]["value"] = 0.0
+                sensors.append(sensor)
+            if "outputs" not in nx_group[dev]:
+                nx_group[dev].create_group("outputs")
+            for controller in nx_group[dev]["outputs"]:
+                nx_group[dev]["environment"][controller] = h5py.SoftLink(
+                    f"/{self._entry_name}/instruments/{dev}/outputs/{controller}"
+                )
+            nx_group[dev]["environment"].create_group("pid")
+            nx_group[dev]["environment"]["pid"].attrs["NX_class"] = "NXpid"
+            nx_group[dev]["environment"]["independent_controllers"] = ""
+            nx_group[dev]["environment"]["measurement_sensors"] = " ".join(sensors)
+        nx_group["data"] = h5py.SoftLink(f"/{self._entry_name}/data")
+        for dat in self._entry["data"]:
+            # check if group has attribute NX_class as NXdata
+            if self._entry["data"][dat].attrs.get("NX_class") == "NXdata":
+                nx_group[dat] = h5py.SoftLink(f"/{self._entry_name}/data/{dat}")
+        additionals = nx_group.create_group("additional_information")
+        additionals.attrs["NX_class"] = "NXcollection"
+        additionals["measurement_details"] = h5py.SoftLink(
+            f"/{self._entry_name}/measurement_details"
+        )
+        additionals["program"] = h5py.SoftLink(f"/{self._entry_name}/program")
