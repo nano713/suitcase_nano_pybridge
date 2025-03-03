@@ -43,7 +43,7 @@ def get_config():
     cfg.style = "pep440-post"
     cfg.tag_prefix = "v"
     cfg.parentdir_prefix = "None"
-    cfg.versionfile_source = "suitcase/nomad_camels_hdf5/_version.py"
+    cfg.versionfile_source = "suitcase/nano_pybridge/_version.py"
     cfg.verbose = False
     return cfg
 

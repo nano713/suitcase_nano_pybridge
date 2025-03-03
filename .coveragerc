@@ -1,4 +1,4 @@
 [run]
 branch = true
-include = suitcase/nomad_camels_hdf5/*
-omit = suitcase/nomad_camels_hdf5/_version.py
+include = suitcase/nano_pybridge/*
+omit = suitcase/nano_pybridge/_version.py

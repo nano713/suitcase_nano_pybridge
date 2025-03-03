@@ -8,7 +8,7 @@ recursive-exclude * *.py[co]
 recursive-include docs *.rst conf.py Makefile make.bat
 
 include versioneer.py
-include suitcase/nomad_camels_hdf5/_version.py
+include suitcase/nano_pybridge/_version.py
 
 # If including data files in the package, add them like:
 # include path/to/data_file

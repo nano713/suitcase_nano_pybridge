@@ -39,12 +39,12 @@ with open(path.join(here, "requirements.txt")) as requirements_file:
 
 
 setup(
-    name="suitcase-nomad-camels-hdf5",
+    name="suitcase-nano-pybridge",
     version="0.4.3",
     # cmdclass=versioneer.get_cmdclass(),
     long_description=readme,
     long_description_content_type="text/markdown",
-    packages=["suitcase.nomad_camels_hdf5", "suitcase.nomad_camels_hdf5.tests"],
+    packages=["suitcase.nano_pybridge", "suitcase.nano_pybridge.tests"],
     entry_points={
         "console_scripts": [
             # 'some.module:some_function',
@@ -53,7 +53,7 @@ setup(
     include_package_data=True,
     python_requires=">={}".format(".".join(str(n) for n in min_version)),
     package_data={
-        "suitcase.nomad_camels_hdf5": [
+        "suitcase.nano_pybridge": [
             # When adding files here, remember to update MANIFEST.in as well,
             # or else they will not be included in the distribution on PyPI!
             # 'path/to/data_file',

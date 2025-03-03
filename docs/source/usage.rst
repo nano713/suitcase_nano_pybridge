@@ -2,8 +2,8 @@
 Usage
 =====
 
-Start by importing ``suitcase.nomad-camels-hdf5``.
+Start by importing ``suitcase.nano-pybridge``.
 
 .. code-block:: python
 
-    import suitcase.nomad_camels_hdf5
+    import suitcase.nano_pybridge

@@ -4,4 +4,4 @@ Installation
 
 At the command line::
 
-    $ pip install suitcase-nomad-camels-hdf5
+    $ pip install suitcase-nano-pybridge

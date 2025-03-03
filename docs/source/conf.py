@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 #
-# nomad-camels-hdf5 documentation build configuration file, created by
+# nano-pybridge documentation build configuration file, created by
 # sphinx-quickstart on Thu Jun 28 12:35:56 2018.
 #
 # This file is execfile()d with the current directory set to its
@@ -67,17 +67,17 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = 'suitcase.nomad-camels-hdf5'
-copyright = 'suitcase.nomad-camels-hdf5 Contributors'
-author = 'suitcase.nomad-camels-hdf5 Contributors'
+project = 'suitcase.nano-pybridge'
+copyright = 'suitcase.nano-pybridge Contributors'
+author = 'suitcase.nano-pybridge Contributors'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
 # built documents.
 #
-import suitcase.nomad_camels_hdf5
+import suitcase.nano_pybridge
 # The short X.Y version.
-version = suitcase.nomad_camels_hdf5.__version__
+version = suitcase.nano_pybridge.__version__
 # The full version, including alpha/beta/rc tags.
 release = version
 
@@ -136,7 +136,7 @@ html_sidebars = {
 # -- Options for HTMLHelp output ------------------------------------------
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'nomad-camels-hdf5'
+htmlhelp_basename = 'nano-pybridge'
 
 
 # -- Options for LaTeX output ---------------------------------------------
@@ -163,7 +163,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'nomad-camels-hdf5.tex', 'nomad-camels-hdf5 Documentation',
+    (master_doc, 'nano-pybridge.tex', 'nano-pybridge Documentation',
      'Contributors', 'manual'),
 ]
 
@@ -173,7 +173,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'nomad-camels-hdf5', 'nomad-camels-hdf5 Documentation',
+    (master_doc, 'nano-pybridge', 'nano-pybridge Documentation',
      [author], 1)
 ]
 
@@ -184,8 +184,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'nomad-camels-hdf5', 'nomad-camels-hdf5 Documentation',
-     author, 'nomad-camels-hdf5', '',
+    (master_doc, 'nano-pybridge', 'nano-pybridge Documentation',
+     author, 'nano-pybridge', '',
      'Miscellaneous'),
 ]
 

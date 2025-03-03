@@ -25,7 +25,7 @@ def export(
     gen, directory, file_prefix="{uid}-", new_file_each=True, plot_data=None, **kwargs
 ):
     """
-    Export a stream of documents to nomad_camels_hdf5.
+    Export a stream of documents to nano_pybridge.
 
     .. note::
 
@@ -323,7 +323,7 @@ class FileManager:
 
 class Serializer(event_model.DocumentRouter):
     """
-    Serialize a stream of documents to nomad_camels_hdf5.
+    Serialize a stream of documents to nano_pybridge.
 
     .. note::
 
@@ -547,10 +547,8 @@ class Serializer(event_model.DocumentRouter):
         if "measurement_description" in doc:
             measurement["measurement_description"] = doc.pop("measurement_description")
         program = entry.create_group("program")
-        program["program_name"] = "NOMAD CAMELS"
-        program["program_url"] = "https://fau-lap.github.io/NOMAD-CAMELS/"
-        # proc["program"].attrs["version"] = "0.1"
-        # proc["program"].attrs["program_url"] = "https://github.com/FAU-LAP/NOMAD-CAMELS"
+        program["program_name"] = "Nano Pybridge"
+        # program["program_url"] = "https://fau-lap.github.io/NOMAD-CAMELS/"
         # version_dict = doc.pop("versions") if "versions" in doc else {}
         # vers_group = proc.create_group("versions")
         py_environment = program.create_group("python_environment")
@@ -558,7 +556,7 @@ class Serializer(event_model.DocumentRouter):
         for x in importlib.metadata.distributions():
             name = x.metadata["Name"]
             if name not in py_environment.keys():
-                if name == "nomad_camels":
+                if name == "nano_pybridge":
                     program["version"] = x.version
                 py_environment[x.metadata["Name"]] = x.version
             # except Exception as e:
