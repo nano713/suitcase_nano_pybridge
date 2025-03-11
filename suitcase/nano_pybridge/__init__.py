@@ -495,7 +495,7 @@ class Serializer(event_model.DocumentRouter):
         )
         i = 1
         self._h5_output_file.attrs["NX_class"] = "NXroot"
-        entry_name = "CAMELS_" + entry_name
+        entry_name = "NANO_" + entry_name
         while entry_name in self._h5_output_file:
             if entry_name.endswith(f"_{i-1}"):
                 entry_name = entry_name.replace(f"_{i-1}", f"_{i}")
@@ -548,7 +548,7 @@ class Serializer(event_model.DocumentRouter):
             measurement["measurement_description"] = doc.pop("measurement_description")
         program = entry.create_group("program")
         program["program_name"] = "Nano Pybridge"
-        # program["program_url"] = "https://fau-lap.github.io/NOMAD-CAMELS/"
+        # program["program_url"] = "https://fau-lap.github.io/NOMAD-CAMELS/" #TODO organization
         # version_dict = doc.pop("versions") if "versions" in doc else {}
         # vers_group = proc.create_group("versions")
         py_environment = program.create_group("python_environment")
@@ -603,10 +603,10 @@ class Serializer(event_model.DocumentRouter):
         for dev, dat in device_data.items():
             dev_group = instr.create_group(dev)
             dev_group.attrs["NX_class"] = "NXinstrument"
-            if "instrument_camels_channels" in dat:
+            if "instrument_nano_channels" in dat:
                 sensor_group = dev_group.create_group("sensors")
                 output_group = dev_group.create_group("outputs")
-                channel_dict = dat.pop("instrument_camels_channels")
+                channel_dict = dat.pop("instrument_nano_channels")
                 for ch, ch_dat in channel_dict.items():
                     is_output = ch_dat.pop("output")
                     ch_dat = dict(ch_dat)
@@ -922,7 +922,7 @@ class Serializer(event_model.DocumentRouter):
         self.close()
 
     def make_nexus_structure(self):
-        if self._entry_name.startswith("CAMELS_"):
+        if self._entry_name.startswith("NANO_"):
             nexus_name = "NeXus_" + self._entry_name[7:]
         else:
             nexus_name = "NeXus_" + self._entry_name
